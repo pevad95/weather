@@ -1,0 +1,42 @@
+.tab-header {
+    display: flex;
+    gap: 0.4rem;
+}
+
+.tab-header div {
+    background-color: rgb(100, 118, 154);
+    color: white;
+}
+
+.tab-header div:has(:disabled) {
+    background-color: rgb(186, 186, 186);
+    color: rgb(120, 120, 120);
+}
+
+.tab-header div.selected {
+    font-weight: bold;
+    border-width: 2px;
+}
+
+.tab-body:not(:empty), .tab-header div {
+    border: 1px solid black;
+}
+
+.tab-header button {
+    background: none;
+    border: none;
+    padding: 1rem;
+}
+
+.tab-header .title {
+    display: inline-block;
+}
+
+.tab-header .title:not(:disabled):hover, 
+.tab-header .remove:not(:disabled):hover {
+    background-color: rgb(68, 98, 159);
+}
+
+.tab-body {
+    padding: 1rem;
+}

@@ -1,0 +1,20 @@
+<header class="tab-header">
+    <div *ngFor="let config of configs; index as idx" [class.selected]="idx === selectedTabIdx">
+        <button 
+            class="title" 
+            (click)="selectTab(idx)" 
+            role="tab"
+            [attr.ariaLabel]="config.ariaLabel ?? config.title"
+            [attr.aria-disabled]="config.disabled"
+            [attr.aria-selected]="idx === selectedTabIdxxxs" 
+            [disabled]="config.disabled"
+        >
+            {{config.title}}
+        </button>
+        <button (click)="removeTab(idx)" class="remove" aria-label="Remove tab" [disabled]="config.disabled">X</button>
+    </div>
+</header>
+<div class="tab-body" *ngIf="numberOfTabs > 0">
+    <ng-container *ngTemplateOutlet="selectedTab">
+    </ng-container>
+</div>

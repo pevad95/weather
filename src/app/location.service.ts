@@ -1,33 +1,57 @@
-import { Injectable } from '@angular/core';
-import {WeatherService} from "./weather.service";
+import { Injectable, OnDestroy } from '@angular/core';
+import { ReplaySubject } from 'rxjs';
 
 export const LOCATIONS : string = "locations";
 
+export enum LocationChangeType {
+  ADD,
+  REMOVE,
+}
+
+export interface LocationChange {
+  type: LocationChangeType;
+  location: string;
+}
+
 @Injectable()
-export class LocationService {
+export class LocationService implements OnDestroy {
 
-  locations : string[] = [];
+  private locations: string[] = [];
+  private changeNotifier$: ReplaySubject<LocationChange>;
 
-  constructor(private weatherService : WeatherService) {
+  constructor() {
     let locString = localStorage.getItem(LOCATIONS);
-    if (locString)
+    this.changeNotifier$ = new ReplaySubject<LocationChange>();
+    
+    if (locString) {
       this.locations = JSON.parse(locString);
-    for (let loc of this.locations)
-      this.weatherService.addCurrentConditions(loc);
+    }
+
+    for (let loc of this.locations) {
+      this.changeNotifier$.next({type: LocationChangeType.ADD, location: loc});
+    }
   }
 
-  addLocation(zipcode : string) {
+  public get changeNotifier() {
+    return this.changeNotifier$.asObservable();
+  }
+
+  public addLocation(zipcode : string) {
     this.locations.push(zipcode);
     localStorage.setItem(LOCATIONS, JSON.stringify(this.locations));
-    this.weatherService.addCurrentConditions(zipcode);
+    this.changeNotifier$.next({type: LocationChangeType.ADD, location: zipcode});
   }
 
-  removeLocation(zipcode : string) {
+  public removeLocation(zipcode : string) {
     let index = this.locations.indexOf(zipcode);
     if (index !== -1){
       this.locations.splice(index, 1);
       localStorage.setItem(LOCATIONS, JSON.stringify(this.locations));
-      this.weatherService.removeCurrentConditions(zipcode);
+      this.changeNotifier$.next({type: LocationChangeType.REMOVE, location: zipcode});
     }
+  }
+
+  public ngOnDestroy(): void {
+    this.changeNotifier$.complete();
   }
 }

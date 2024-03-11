@@ -1,28 +1,49 @@
-import {Injectable, Signal, signal} from '@angular/core';
-import {Observable} from 'rxjs';
+import {Injectable, OnDestroy, Signal, signal} from '@angular/core';
+import {Observable, Subject} from 'rxjs';
+import {takeUntil} from 'rxjs/operators';
 
 import {HttpClient} from '@angular/common/http';
 import {CurrentConditions} from './current-conditions/current-conditions.type';
 import {ConditionsAndZip} from './conditions-and-zip.type';
 import {Forecast} from './forecasts-list/forecast.type';
+import { LocationChange, LocationChangeType, LocationService } from './location.service';
+import { CacheService } from './cache/cache.service';
 
 @Injectable()
-export class WeatherService {
+export class WeatherService implements OnDestroy {
 
-  static URL = 'http://api.openweathermap.org/data/2.5';
+  static URL = 'https://api.openweathermap.org/data/2.5';
   static APPID = '5a4b2d457ecbef9eb2a71e480b947604';
   static ICON_URL = 'https://raw.githubusercontent.com/udacity/Sunshine-Version-2/sunshine_master/app/src/main/res/drawable-hdpi/';
   private currentConditions = signal<ConditionsAndZip[]>([]);
+  private destroy$ = new Subject<void>();
 
-  constructor(private http: HttpClient) { }
+  constructor(private http: HttpClient, 
+    private locationService: LocationService,
+    private cacheService: CacheService,
+  ) { 
+    this.locationService.changeNotifier
+    .pipe(takeUntil(this.destroy$))
+    .subscribe(change => this.manageLocationChange(change));
+  }
 
-  addCurrentConditions(zipcode: string): void {
+  private manageLocationChange(change: LocationChange) {
+    if (change.type === LocationChangeType.ADD) {
+      this.addCurrentConditions(change.location);
+    } else if (change.type === LocationChangeType.REMOVE) {
+      this.removeCurrentConditions(change.location);
+      this.cacheService.remove(`${change.location}-current`);
+      this.cacheService.remove(`${change.location}-forecast`);
+    }
+  }
+
+  private addCurrentConditions(zipcode: string): void {
     // Here we make a request to get the current conditions data from the API. Note the use of backticks and an expression to insert the zipcode
     this.http.get<CurrentConditions>(`${WeatherService.URL}/weather?zip=${zipcode},us&units=imperial&APPID=${WeatherService.APPID}`)
       .subscribe(data => this.currentConditions.update(conditions => [...conditions, {zip: zipcode, data}]));
   }
 
-  removeCurrentConditions(zipcode: string) {
+  private removeCurrentConditions(zipcode: string) {
     this.currentConditions.update(conditions => {
       for (let i in conditions) {
         if (conditions[i].zip == zipcode)
@@ -32,17 +53,17 @@ export class WeatherService {
     })
   }
 
-  getCurrentConditions(): Signal<ConditionsAndZip[]> {
+  public getCurrentConditions(): Signal<ConditionsAndZip[]> {
     return this.currentConditions.asReadonly();
   }
 
-  getForecast(zipcode: string): Observable<Forecast> {
+  public getForecast(zipcode: string): Observable<Forecast> {
     // Here we make a request to get the forecast data from the API. Note the use of backticks and an expression to insert the zipcode
     return this.http.get<Forecast>(`${WeatherService.URL}/forecast/daily?zip=${zipcode},us&units=imperial&cnt=5&APPID=${WeatherService.APPID}`);
 
   }
 
-  getWeatherIcon(id): string {
+  public getWeatherIcon(id): string {
     if (id >= 200 && id <= 232)
       return WeatherService.ICON_URL + "art_storm.png";
     else if (id >= 501 && id <= 511)
@@ -59,4 +80,8 @@ export class WeatherService {
       return WeatherService.ICON_URL + "art_clear.png";
   }
 
+  public ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
 }

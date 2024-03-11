@@ -1,5 +1,5 @@
 import { BrowserModule } from '@angular/platform-browser';
-import { NgModule } from '@angular/core';
+import { APP_INITIALIZER, NgModule } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
 import { AppComponent } from './app.component';
@@ -11,9 +11,13 @@ import { CurrentConditionsComponent } from './current-conditions/current-conditi
 import { MainPageComponent } from './main-page/main-page.component';
 import {RouterModule} from "@angular/router";
 import {routing} from "./app.routing";
-import {HttpClientModule} from "@angular/common/http";
+import {HTTP_INTERCEPTORS, HttpClientModule} from "@angular/common/http";
 import { ServiceWorkerModule } from '@angular/service-worker';
 import { environment } from '../environments/environment';
+import { TabModule } from './tab/tab.module';
+import { WeatherCachingInterceptor } from './cache/weather-caching-interceptor';
+import { CacheService } from './cache/cache.service';
+import { ConfigService } from './config/config.service';
 
 @NgModule({
   declarations: [
@@ -29,9 +33,22 @@ import { environment } from '../environments/environment';
     HttpClientModule,
     RouterModule,
     routing,
-    ServiceWorkerModule.register('/ngsw-worker.js', { enabled: environment.production })
+    ServiceWorkerModule.register('./ngsw-worker.js', { enabled: environment.production }),
+    TabModule,
   ],
-  providers: [LocationService, WeatherService],
+  providers: [
+    LocationService, 
+    WeatherService,
+    CacheService,
+    ConfigService,
+    {
+      provide: APP_INITIALIZER,
+      multi: true,
+      useFactory: configService => () => configService.init(),
+      deps: [ConfigService],
+    },
+    {provide: HTTP_INTERCEPTORS, useClass: WeatherCachingInterceptor, multi: true},
+  ],
   bootstrap: [AppComponent]
 })
 export class AppModule { }
